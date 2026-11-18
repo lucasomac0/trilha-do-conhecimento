@@ -39,20 +39,45 @@ body {
 }
 .btn-pixel:hover:not(:disabled) { transform: scale(1.04); filter: brightness(1.25); }
 .btn-pixel:disabled { opacity: 0.5; }
+
 .opcao {
+  position: relative;
   width: 100%;
   text-align: left;
-  font-size: 1.15rem;
+  font-size: clamp(1.1rem, 1.7vw, 2rem);
+  line-height: 1.35;
   background: linear-gradient(#0a0aa8, #00008f);
   border: 4px solid #000;
   border-radius: 18px;
   padding: 1.1rem 1.4rem;
   box-shadow: 0 0 30px 6px rgba(0, 0, 0, 0.85);
-  transition: filter 0.15s;
+  transition: filter 0.2s, opacity 0.3s;
 }
 .opcao:hover:not(:disabled) { filter: brightness(1.3); }
-.opcao.certa { background: #0a7a2f; }
-.opcao.errada { background: #a01616; }
+.opcao:disabled:not(.certa):not(.errada) { opacity: 0.4; }
+.opcao.certa {
+  background: linear-gradient(#10a43f, #0a7a2f);
+  box-shadow: 0 0 50px 12px rgba(74, 222, 128, 0.7);
+  animation: pulsar-certa 0.9s ease-out;
+}
+.opcao.errada {
+  background: linear-gradient(#c81e1e, #8f1010);
+  box-shadow: 0 0 50px 12px rgba(248, 113, 113, 0.6);
+  animation: tremer-opcao 0.55s ease-in-out;
+}
+@keyframes pulsar-certa {
+  0%, 100% { transform: scale(1); }
+  35% { transform: scale(1.04); }
+}
+@keyframes tremer-opcao {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-14px); }
+  30% { transform: translateX(14px); }
+  45% { transform: translateX(-10px); }
+  60% { transform: translateX(10px); }
+  75% { transform: translateX(-5px); }
+  90% { transform: translateX(5px); }
+}
 
 @theme {
   --animate-girar: girar 120s linear infinite;
@@ -70,4 +95,68 @@ body {
     from { background-position-x: 0%; }
     to { background-position-x: 200%; }
   }
+}
+
+@theme {
+  /* Já usadas no mapa (faltavam no arquivo) */
+  --animate-flutuar: flutuar 6s ease-in-out infinite;
+  --animate-onda: onda 2.4s ease-out infinite;
+  --animate-respirar: respirar 2.2s ease-in-out infinite;
+  --animate-astro: astro 5s ease-in-out infinite;
+  --animate-sol: sol 4s ease-in-out infinite;
+  --animate-entrar: entrar 0.7s ease-out backwards;
+  /* Novas: /planeta e /final */
+  --animate-surgir: surgir 0.6s ease-out backwards;
+  --animate-pop: pop 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) backwards;
+  --animate-tremer: tremer 0.5s ease-in-out;
+  --animate-clarao: clarao 1.2s ease-out forwards;
+  --animate-piscar: piscar 1s ease-out both;
+  --animate-subir: subir 1.4s ease-out forwards;
+  --animate-estouro: estouro 0.9s ease-out forwards;
+  --animate-cair: cair 4s linear backwards;
+  --animate-raios: raios 60s linear infinite;
+  --animate-pousar: pousar 2.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+
+  @keyframes flutuar { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  @keyframes onda { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(1.9); opacity: 0; } }
+  @keyframes respirar { 0%, 100% { transform: scale(1); opacity: 0.55; } 50% { transform: scale(1.25); opacity: 0.95; } }
+  @keyframes astro { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-10px) rotate(6deg); } }
+  @keyframes sol { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  @keyframes entrar { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+  @keyframes surgir { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pop { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: scale(1); } }
+  @keyframes tremer {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-12px); }
+    40% { transform: translateX(12px); }
+    60% { transform: translateX(-8px); }
+    80% { transform: translateX(8px); }
+  }
+  @keyframes clarao { from { transform: scale(0); opacity: 0.95; } to { transform: scale(30); opacity: 0; } }
+  @keyframes piscar { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes subir {
+    0% { opacity: 0; transform: translateY(0) scale(0.6); }
+    15% { opacity: 1; transform: translateY(-10px) scale(1.2); }
+    100% { opacity: 0; transform: translateY(-110px) scale(1); }
+  }
+  @keyframes estouro {
+    from { opacity: 1; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.2); }
+  }
+  @keyframes cair {
+    from { transform: translateY(0) rotate(0deg); }
+    to { transform: translateY(112vh) rotate(720deg); }
+  }
+  @keyframes raios { to { transform: rotate(360deg); } }
+  @keyframes pousar {
+    from { opacity: 0; transform: translateY(-90vh) rotate(-25deg); }
+    20% { opacity: 1; }
+    to { opacity: 1; transform: translateY(0) rotate(0deg); }
+  }
+}
+
+.transicao-astro { will-change: left, top; }
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-"], .opcao { animation: none !important; }
 }
