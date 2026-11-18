@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImgOpcional from "@/components/ImgOpcional";
@@ -15,7 +15,22 @@ const ROTULO: Record<Estado, string> = {
   indisponivel: "Em breve",
 };
 
-function PlanetaNo({ p, i }: { p: Planeta; i: number }) {
+// Onde o astronauta "pisa" em cada destino (fração da largura/altura do elemento).
+const PONTO = {
+  planeta: { fx: 0.72, fy: 0.85 },
+  base: { fx: 0.5, fy: 0.5 },
+  sol: { fx: 0.12, fy: 0.75 },
+};
+
+function PlanetaNo({
+  p,
+  i,
+  registrar,
+}: {
+  p: Planeta;
+  i: number;
+  registrar: (slug: string, el: HTMLDivElement | null) => void;
+}) {
   const bloqueado = p.estado === "bloqueado";
   const andamento = p.estado === "desbloqueado";
   const concluido = p.estado === "concluido";
@@ -25,7 +40,10 @@ function PlanetaNo({ p, i }: { p: Planeta; i: number }) {
 
   const corpo = (
     <>
-      <div className="relative size-[min(17vh,13vw)] transition-transform duration-300 group-hover:scale-110">
+      <div
+        ref={(el) => registrar(p.slug, el)}
+        className="relative size-[min(17vh,13vw)] transition-transform duration-300 group-hover:scale-110"
+      >
         {/* Em andamento: ondas pulsantes e halo "respirando" */}
         {andamento && (
           <>
@@ -43,9 +61,9 @@ function PlanetaNo({ p, i }: { p: Planeta; i: number }) {
             />
           </>
         )}
-        {/* Concluído: halo verde fixo */}
+        {/* Concluído: brilho verde difuso */}
         {concluido && (
-          <span className="absolute -inset-[18%] rounded-full bg-green-400 opacity-40 blur-xl" />
+          <span className="absolute -inset-[15%] rounded-full bg-green-400/25 blur-2xl" />
         )}
 
         <div className="h-full w-full animate-flutuar" style={{ animationDelay: `${i * 0.45}s` }}>
@@ -53,14 +71,14 @@ function PlanetaNo({ p, i }: { p: Planeta; i: number }) {
             className={[
               "relative h-full w-full rounded-full transition-[filter] duration-500",
               bloqueado ? "brightness-50 grayscale" : "",
-              concluido ? "ring-[5px] ring-green-400/80" : "",
+              concluido ? "ring-2 ring-green-300/30" : "",
             ].join(" ")}
             style={{
               background: `radial-gradient(circle at 35% 30%, #fff8, ${p.cor} 55%, #000)`,
             }}
           >
             <ImgOpcional
-              src={`/img/planetas/${p.slug}.png`}
+              src={`/img/planetas/${p.slug}.jpg`}
               className="absolute inset-0 h-full w-full object-contain"
             />
             {bloqueado && (
@@ -69,7 +87,7 @@ function PlanetaNo({ p, i }: { p: Planeta; i: number }) {
               </span>
             )}
             {concluido && (
-              <span className="absolute right-0 top-0 rounded-full border-4 border-black bg-green-600 px-[0.6vw] font-pixel text-[clamp(10px,1.2vw,22px)]">
+              <span className="absolute right-0 top-0 rounded-full border-2 border-black/50 bg-green-600/90 px-[0.6vw] font-pixel text-[clamp(10px,1.2vw,22px)]">
                 OK
               </span>
             )}
@@ -106,6 +124,16 @@ export default function Mapa() {
   const [s, setS] = useState<Estatus | null>(null);
   const [erro, setErro] = useState(false);
   const [pronto, setPronto] = useState(false);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+
+  const raiz = useRef<HTMLElement>(null);
+  const planetaEls = useRef<Record<string, HTMLDivElement | null>>({});
+  const baseEl = useRef<HTMLSpanElement>(null);
+  const solEl = useRef<HTMLDivElement>(null);
+
+  const registrar = useCallback((slug: string, el: HTMLDivElement | null) => {
+    planetaEls.current[slug] = el;
+  }, []);
 
   useEffect(() => {
     fetch("/api/state", { cache: "no-store" })
@@ -117,12 +145,44 @@ export default function Mapa() {
       .catch(() => setErro(true));
   }, [router]);
 
-  // Faz o astronauta "voar" do início até a posição atual ao abrir o mapa.
+  // Primeiro desenha o astronauta na base; depois ele voa até o destino real.
   useEffect(() => {
     if (!s) return;
     const t = setTimeout(() => setPronto(true), 150);
     return () => clearTimeout(t);
   }, [s]);
+
+  const atual = s?.planetas.find((p) => p.estado === "desbloqueado")?.slug ?? null;
+  const destino = !pronto ? "base" : s?.finalizada ? "sol" : (atual ?? "base");
+
+  // Mede onde o astronauta deve ficar (e remede ao redimensionar a janela).
+  useLayoutEffect(() => {
+    if (!s) return;
+    const medir = () => {
+      const area = raiz.current?.getBoundingClientRect();
+      if (!area) return;
+      let el: Element | null | undefined;
+      let ponto = PONTO.base;
+      if (destino === "sol") {
+        el = solEl.current;
+        ponto = PONTO.sol;
+      } else if (destino === "base") {
+        el = baseEl.current;
+      } else {
+        el = planetaEls.current[destino];
+        ponto = PONTO.planeta;
+      }
+      const r = el?.getBoundingClientRect();
+      if (!r) return;
+      setPos({
+        x: r.left - area.left + r.width * ponto.fx,
+        y: r.top - area.top + r.height * ponto.fy,
+      });
+    };
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, [s, destino]);
 
   if (erro)
     return (
@@ -141,7 +201,10 @@ export default function Mapa() {
   const pct = !pronto ? 0 : s.finalizada ? 100 : n ? (feitos / n) * 100 : 0;
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden px-[2.5vw] py-[2vh]">
+    <main
+      ref={raiz}
+      className="relative flex h-dvh flex-col overflow-hidden px-[2.5vw] py-[2vh]"
+    >
       <header className="mb-[1.5vh] flex shrink-0 flex-wrap items-center justify-between gap-3 font-pixel text-[clamp(12px,1.5vw,28px)]">
         <span>{s.equipe}</span>
         <span>
@@ -152,11 +215,11 @@ export default function Mapa() {
       {/* Grade de planetas */}
       <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-3 place-items-center gap-x-[2vw]">
         {s.planetas.map((p, i) => (
-          <PlanetaNo key={p.slug} p={p} i={i} />
+          <PlanetaNo key={p.slug} p={p} i={i} registrar={registrar} />
         ))}
       </div>
 
-      {/* Viagem até o Sol */}
+      {/* Progresso até o Sol */}
       <div className="mt-[1.5vh] flex h-[clamp(90px,11vh,140px)] shrink-0 items-center gap-[3vw]">
         <div className="relative ml-[4vw] h-full flex-1">
           <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white/15" />
@@ -173,15 +236,11 @@ export default function Mapa() {
               style={{ left: `${((k + 1) / n) * 100}%` }}
             />
           ))}
-
-          <div
-            className="transicao-astro pointer-events-none absolute top-1/2 z-10 w-[clamp(56px,7vw,120px)] -translate-x-1/2 -translate-y-1/2 transition-[left] duration-[2400ms] ease-in-out"
-            style={{ left: `${pct}%` }}
-          >
-            <div className="animate-astro drop-shadow-[0_0_12px_rgba(255,255,255,0.45)]">
-              <ImgOpcional src="/img/astronauta.png" className="h-auto w-full" />
-            </div>
-          </div>
+          {/* Base: onde o astronauta espera quando nenhum planeta está em andamento */}
+          <span
+            ref={baseEl}
+            className="absolute left-0 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/60 bg-white/20"
+          />
 
           {s.finalizada && (
             <div className="absolute inset-0 z-20 grid place-items-center">
@@ -192,7 +251,7 @@ export default function Mapa() {
           )}
         </div>
 
-        <div className="relative aspect-square h-[130%] shrink-0">
+        <div ref={solEl} className="relative aspect-square h-[130%] shrink-0">
           <div
             className={`h-full w-full animate-sol rounded-full transition-opacity duration-1000 ${
               s.finalizada ? "opacity-100" : "opacity-50"
@@ -204,6 +263,18 @@ export default function Mapa() {
           />
         </div>
       </div>
+
+      {/* Astronauta: voa até o planeta em andamento (ou até a base / o Sol) */}
+      {pos && (
+        <div
+          className="transicao-astro pointer-events-none absolute z-30 w-[clamp(48px,5vw,96px)] -translate-x-1/2 -translate-y-full transition-[left,top] duration-[2400ms] ease-in-out"
+          style={{ left: pos.x, top: pos.y }}
+        >
+          <div className="animate-flutuar drop-shadow-[0_0_10px_rgba(255,255,255,0.45)]">
+            <ImgOpcional src="/img/astronauta.png" className="h-auto w-full" />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
