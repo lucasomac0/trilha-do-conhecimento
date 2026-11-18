@@ -21,24 +21,19 @@ const PONTO = {
   sol: { fx: 0.12, fy: 0.75 },
 };
 
-// Textura equirretangular: duas cópias lado a lado deslizando = rotação contínua.
+// Textura equirretangular (proporção 2:1) repetida e deslizando = rotação contínua.
 function Textura({ slug, atraso }: { slug: string; atraso: number }) {
-  const [ok, setOk] = useState(true);
-  if (!ok) return null;
   return (
     <div className="absolute inset-0 overflow-hidden rounded-full">
-      <div className="flex h-full w-[400%] animate-girar" style={{ animationDelay: `-${atraso}s` }}>
-        {[0, 1].map((k) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={k}
-            src={`/img/planetas/${slug}.png`}
-            alt=""
-            onError={() => setOk(false)}
-            className="h-full w-1/2 max-w-none object-cover"
-          />
-        ))}
-      </div>
+      <div
+        className="h-full w-full animate-girar-bg"
+        style={{
+          backgroundImage: `url(/img/planetas/${slug}.png)`,
+          backgroundSize: "200% 100%",
+          backgroundRepeat: "repeat-x",
+          animationDelay: `-${atraso}s`,
+        }}
+      />
     </div>
   );
 }

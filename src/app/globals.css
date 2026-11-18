@@ -62,3 +62,12 @@ body {
     to { transform: translateX(-50%); }
   }
 }
+
+@theme {
+  --animate-girar-bg: girar-bg 120s linear infinite;
+
+  @keyframes girar-bg {
+    from { background-position-x: 0%; }
+    to { background-position-x: 200%; }
+  }
+}
